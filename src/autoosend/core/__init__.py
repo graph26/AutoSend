@@ -1,0 +1,1 @@
+from .autosend.core import bot_main

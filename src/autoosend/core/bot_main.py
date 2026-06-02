@@ -1,6 +1,6 @@
 from pyrogram import Client, filters, idle
 from pyrogram.handlers import MessageHandler
-import asynsio
+import asynсio
 
 class UserBotTelegram():
     def __init__(self, name: str, api_id: str, api_hash: str, phone_number: str):
@@ -9,7 +9,7 @@ class UserBotTelegram():
         self.api_hash = api_hash
         self.phone_number = phone_number
 
-        self.bot: Client = Client(self.name, self.api_id
+        self.bot: Client = Client(self.name, self.api_id,
                                 self.api_hash, self.phone_number)
     
 

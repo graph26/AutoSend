@@ -1,1 +1,1 @@
-from .ui import ui_main
+from src.autoosend.ui import ui_main

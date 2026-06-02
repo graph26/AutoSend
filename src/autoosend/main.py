@@ -1,6 +1,6 @@
-from src.config import *
-from src.core.bot_main import *
-from src.ui.ui_main import *
+from config import *
+from .core.bot_main import *
+from .ui.ui_main import *
 
 def main():
     pass

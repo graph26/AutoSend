@@ -1,1 +1,1 @@
-from .autosend.config import *
+from src.autoosend.config import *

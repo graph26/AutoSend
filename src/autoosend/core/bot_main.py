@@ -16,4 +16,5 @@ class UserBotTelegram():
     def register_handlers(self):
         pass
         
-    # async def
+    async def start(self):
+        self.register_handlers(self)

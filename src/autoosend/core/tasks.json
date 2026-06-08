@@ -1,0 +1,12 @@
+{
+    "task_1":{
+        "messenger": ["telegram"],
+        "chat_id": [],
+        "title": "prob",
+        "text": "text",
+        "random": false,
+        "period": [],
+        "datetime": [],
+        "id": "probnic"
+    }
+}

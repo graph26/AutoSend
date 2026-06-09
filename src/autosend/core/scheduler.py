@@ -24,15 +24,16 @@ class AdvancedSchedular():
 
     def load_tasks(self) -> bool:
         try:
-            with open(r"src\autoosend\core\tasks.json", 'r', encoding="utf-8") as file:
+            with open(r"src\autosend\core\tasks.json", 'r', encoding="utf-8") as file:
                 buffer = json.load(file)
-                for task_i: str, data: StructureJsonTasks in buffer:
-                    if date["datetime"] != []:
-                        if datetime(*date["datetime"]) < datetime.now():
+                for task_i, data in buffer.items():
+                    typed_data = cast(StructureJsonTasks, data)
+                    if typed_data["datetime"] != []:
+                        if datetime(*typed_data["datetime"]) < datetime.now():
                             continue
-                    if "telegram" in data["messenger"]:
+                    if "telegram" in typed_data["messenger"]:
                         self.telegram_task_dictionary.update([task_i, data])
-                    if "max" in data["messenger"]:
+                    if "max" in typed_data["messenger"]:
                         self.max_task_dictionary.update([task_i, data])
             return True
         except FileNotFoundError:

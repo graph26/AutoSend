@@ -1,49 +1,51 @@
 import asyncio
-from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.job import Job
+from apscheduler.triggers.base import BaseTrigger
 import json
-from typing import TypedDict, cast
-
-class StructureJsonTasks(TypedDict):
-    messenger: list[str]
-    chat_id: list[int | str]
-    title: str | None
-    text: str | None
-    random: bool
-    period: list[int]
-    datetime: list[int]
-    id: str
-
+from datetime import datetime
 
 class AdvancedSchedular():
-    telegram_task_dictionary: dict = {}
-    max_task_dictionary: dict = {}
+    def __init__(self):
+        self._sheduler = AsyncIOScheduler()
+        self._started = False
 
-    def load_tasks(self) -> bool:
-        try:
-            with open(r"src\autosend\core\tasks.json", 'r', encoding="utf-8") as file:
-                buffer = json.load(file)
-                for task_i, data in buffer.items():
-                    typed_data = cast(StructureJsonTasks, data)
-                    if typed_data["datetime"] != []:
-                        if datetime(*typed_data["datetime"]) < datetime.now():
-                            continue
-                    if "telegram" in typed_data["messenger"]:
-                        self.telegram_task_dictionary.update([task_i, data])
-                    if "max" in typed_data["messenger"]:
-                        self.max_task_dictionary.update([task_i, data])
-            return True
-        except FileNotFoundError:
-            return False
-        except Exception:
-            return False
+    async def start(self):
+        if not self._started:
+            self._sheduler.start()
+            self._started = True
     
-    def save_tasks(self):
-        with open(r"src\autoosend\core\tasks.json", 'w', encoding="utf-8") as file:
-            buffer = self.telegram_task_dictionary | self.max_task_dictionary
-            json.dump(buffer, file, indent=4, ensure_ascii=False)
+    async def shutdown(self, wait: bool=True):
+        if self._started:
+            self._sheduler.shutdown(wait=wait)
+            self._started = False
+    
+    def add_job(self, job: Job):
+        self._scheduler.add_job(job.func, job.trigger, job.args, job.kwargs, job.id, job.name,
+                                job.misfire_grace_time, job.coalesce, job.max_instances, job.next_run_time, executor=job.executor)
+ 
+    def get_job(self, job_id: str):
+        return self._scheduler.get_job(job_id)
+    
+    def get_jobs(self):
+        return self._scheduler.get_jobs()
+    
+    def remove_job(self, job_id: str):
+        job = self.get_job(job_id)
+        if job:
+            self._scheduler.remove_job(job_id)
+    
+    def pause_job(self, job_id: str):
+        job = self.get_job(job_id)
+        if job:
+            job.pause()
+    
+    def resume_job(self, job_id: str):
+        job = self.get_job(job_id)
+        if job:
+            job.resume()
     
     

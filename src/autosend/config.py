@@ -1,8 +1,8 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 class Settings(BaseModel):
-    name: str = Field()
-    api_id: str = Field()
-    api_hash: str = Field()
-    phone_number: str = Field()
+    name: str
+    api_id: str
+    api_hash: str
+    phone_number: str
 

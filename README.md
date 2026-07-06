@@ -9,7 +9,7 @@ This program is necessary for automating Telegram channels.
 
 ## 🛠️ Built With
 - Python 3.13.5
-- PyQt5
+- PyQt6
 - Pyrogram
 - pydantic, typing
 

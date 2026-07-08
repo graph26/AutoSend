@@ -1,9 +1,9 @@
 import sys
-from PyQt6.QtCore import Qt, QRect, QSize
+from PyQt6.QtCore import Qt, QTranslator, QThread, pyqtSignal, QStringListModel
 from PyQt6.QtGui import QImage, QPainter, QPen, QColor, QIcon, QPixmap
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QFileDialog, QInputDialog,
-    QColorDialog, QInputDialog, QMessageBox, QLabel, QPushButton, QDialog
+    QApplication, QMainWindow, QWidget, QFileDialog, QInputDialog, QListView,
+    QColorDialog, QInputDialog, QMessageBox, QLabel, QPushButton, QDialog,
 )
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
@@ -14,15 +14,10 @@ import logging
 import asyncio
 import datetime
 
-if __name__ == '__main__':
-    from autosend import Ui_MainWindow
-    from widgets import WindowKey, WindowCreatePost
-    from function import FunctionElementsGUI
-else:
-    from ui.autosend import Ui_MainWindow
-    from ui.widgets import WindowKey, WindowCreatePost
-    from ui.function import FunctionElementsGUI
-    from core.bot_main import UserBotTelegram
+from ui.autosend import Ui_MainWindow
+from ui.widgets import WindowKey, WindowCreatePost
+from autosend.ui.widget import FunctionElementsGUI
+from core.bot_main import UserBotTelegram
 
 
 class MainWindow(QMainWindow, Ui_MainWindow, FunctionElementsGUI):
@@ -31,12 +26,25 @@ class MainWindow(QMainWindow, Ui_MainWindow, FunctionElementsGUI):
         self.setupUi(self)
         self.setWindowIcon(QIcon(r"src\autosend\ui\image\icon.png"))
 
+        self.thread = QThread()
         if keyring.get_password("system", "api_id") and keyring.get_password("system", "api_hash"):
             self.telegram_bot = UserBotTelegram(keyring.get_password("system", "api_id"),
                                                 keyring.get_password("system", "api_hash"),
-                                                keyring.get_password("system", "phone_number"))
+                                                keyring.get_password("system", "phone_number")
+                                                )
+            self.telegram_bot.moveToThread(self.thread)
+            self.thread.started.connect(self.telegram_bot.run)
         else:
             self.telegram_bot: UserBotTelegram
+
+        self.model = QStringListModel()
+        # self.model.setFlags(lambda index, default_flags: default_flags & ~Qt.ItemFlag.ItemIsEditable)
+        self.model.setStringList([])
+        self.listView.setModel(self.model)
+        self.listView.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.listView.setEditTriggers(QListView.EditTrigger.NoEditTriggers)
+        self.model.setData(self.model.index(self.model.insertRow(self.model.rowCount())), "hi")
+        
 
         self.add_function_menu()
         self.add_function()
@@ -54,6 +62,8 @@ class MainWindow(QMainWindow, Ui_MainWindow, FunctionElementsGUI):
         self.menu_help_discord.triggered.connect(lambda: open("https://discord.gg/WtFGJTHU"))
 
         self.menu_tool_create.triggered.connect(self.create_post)
+        self.menu_tool_start.triggered.connect(self.thread.start)
+        self.menu_tool_stop.triggered.connect(self.telegram_bot.stop)
 
         self.menu_view_f11.triggered.connect(self.f11)
     
@@ -62,18 +72,13 @@ class MainWindow(QMainWindow, Ui_MainWindow, FunctionElementsGUI):
         self.button_create.clicked.connect(self.create_post)
 
         self.button_start.setIcon(QIcon(r'src\autosend\ui\image\play.png'))
+        self.button_start.clicked.connect(self.thread.start)
 
         self.button_restore.setIcon(QIcon(r"src\autosend\ui\image\sync.png"))
 
         self.button_delete.setIcon(QIcon(r"src\autosend\ui\image\delete.png"))
 
         self.button_settings.setIcon(QIcon(r"src\autosend\ui\image\gear.png"))
-
-    def button_start_function(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(self.telegram_bot.start())
-        self.telegram_bot.shedular_start()
 
     
     def create_post(self):
@@ -102,6 +107,8 @@ class MainWindow(QMainWindow, Ui_MainWindow, FunctionElementsGUI):
                 self.telegram_bot = UserBotTelegram(keyring.get_password("system", "api_id"),
                                                 keyring.get_password("system", "api_hash"),
                                                 keyring.get_password("system", "phone_number"))
+                self.telegram_bot.moveToThread(self.thread)
+                self.thread.started.connect(self.telegram_bot.run)
             except keyring.errors.PasswordSetError:
                 logging.error("Ошибка сохранения данных")
             except Exception as e:
@@ -109,6 +116,7 @@ class MainWindow(QMainWindow, Ui_MainWindow, FunctionElementsGUI):
 
     def closeEvent(self, event):
         self.close()
+
 
 
         

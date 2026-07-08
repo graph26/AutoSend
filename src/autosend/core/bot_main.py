@@ -1,89 +1,84 @@
-from pyrogram import Client, filters, idle
-from pyrogram.handlers import MessageHandler
-from pyrogram.enums.parse_mode import *
 import asyncio
-import orjson
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.job import Job
+from apscheduler.triggers.base import BaseTrigger
+
+from telethon import TelegramClient, events, connection
 from datetime import datetime
 from core.scheduler import *
+
+from PyQt6.QtCore import QThread, QObject, pyqtSignal, pyqtSlot
+
 import logging
+logging.basicConfig(level=logging.INFO, filename="telegram_log.log", filemode="w",
+                    format="%(name)s %(asctime)s %(levelname)s %(message)s")
 
+class UserBotTelegram(QObject):
 
-class UserBotTelegram(AdvancedSchedular):
-    def __init__(self, api_id: int | str, api_hash: str, phone_number: str, name: str="my_account"):
+    status = pyqtSignal(bool)
+    started = pyqtSignal()
+    stopped = pyqtSignal()
+
+    def __init__(self, api_id: int | str, api_hash: str, phone_number: str, name: str="my_account",
+                connection: type[connection.Connection] = connection.ConnectionTcpFull,
+                proxy: tuple[str, int, str] | dict = None
+                 ):
+        super().__init__()
         self.name = name
         self.api_id = api_id
         self.api_hash = api_hash
         self.phone_number = phone_number
+        self.connection = connection
+        self.proxy = proxy
 
-        self.bot: Client = Client(self.name, self.api_id, self.api_hash, phone_number=self.phone_number, 
-                                  ipv6=True, parse_mode=ParseMode.MARKDOWN)
-        
-    def load_tasks(self) -> bool:
+        self.bot = None
+        self._stop_requested = False
+        self._scheduler = None
+
+
+    @pyqtSlot()
+    def run(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            with open(r"src\autosend\core\tasks.json", 'r', encoding="utf-8") as file:
-                buffer = orjson.load(file)
-                for task_i, data in buffer.items():
-                    if data["trigger"] == DateTrigger and data['next_run_time'] is None:
-                        continue
-                    job = Job(
-                        data['id'],
-                        data['name'],
-                        data['func'],
-                        data['args'],
-                        data['kwargs'],
-                        trigger=data["trigger"],
-                        executor=data['executor'],
-                        next_run_time=data['next_run_time'],
-                    )
-                    self.add_job(job)
-            logging.info("Задачи загружены и включены в планировщик")
-            return True
-        except FileNotFoundError:
-            logging.error("Не найден файл tasks.json")
-            return False
-        except Exception as e:
-            logging.exception(f"{e}")
-            return False
-        
-    def save_tasks(self) -> bool:
-        try:
-            with open(r"src\autoosend\core\tasks.json", 'w', encoding="utf-8") as file:
-                buffer = {}
-                for i, data in enumerate(self.get_jobs()):
-                    typed_data = {}
-                    typed_data["id"] = data.id
-                    typed_data["name"] = data.name
-                    typed_data["func"] = data.func
-                    typed_data["args"] = data.args
-                    typed_data["kwargs"] = data.kwargs
-                    typed_data["trigger"] = data.trigger
-                    typed_data["executor"] = data.executor
-                    typed_data["next_run_time"] = data.next_run_time
-                    buffer.update([f"task_{i}", typed_data])
+            self.bot = TelegramClient(self.name, self.api_id, self.api_hash, self.connection, True, self.proxy, loop=loop)
+            self._scheduler = AsyncIOScheduler(event_loop=loop)
 
-                orjson.dump(buffer, file, indent=4, ensure_ascii=False)
-            logging.info("Задачи успешно сохранены в json файл.")
-            return True
-        except Exception as e:
-            logging.exception(f"{e}")
-            return False
+            async def send(chat: str | int, text: str, file: str = None):
+                if not(file is None):
+                    self.bot.send_file(chat, file, text)
+                else:
+                    await self.bot.send_message(chat, text, link_preview=False)
 
-    async def handle_new_text_message(self, client, message):
+            @self.bot.on(events.NewMessage())
+            async def handler_messages(event):
+                if self._stop_requested:
+                    if self._scheduler and self._scheduler.running:
+                        self._scheduler.shutdown()
+                    await self.bot.disconnect()
+                    return
+
+            with self.bot:
+                self._scheduler.start()
+                loop.run_until_complete(self.bot.run_until_disconnected())
+
+
+        except Exception as exc:
+            pass
+        finally:
+            if self._scheduler and self._scheduler.running:
+               self._scheduler.shutdown()
+            loop.close()
+
+    async def add_task(self, chat: str | int, text: str, trigger, file: str=None):
         pass
 
-    async def handle_start_command(self, client, message):
-        await message.reply(f"Привет!")
+        
     
-    async def send_post(self, text: str, file: str):
-        if file.endswith((".jpg", ".png", ".jpeg")):
-            await self.bot.send_photo(, file, text, parse_mode=ParseMode.)
-        await self.bot.send_message()
-        
-
-    def register_handlers(self):
-        pass
-        
-    async def start(self):
-        self.register_handlers(self)
-        async with self.bot:
-            await idle()
+    @pyqtSlot()
+    def stop(self):
+        self._stop_requested = True
+       

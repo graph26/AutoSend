@@ -1,5 +1,5 @@
 import asyncio
-from apscheduler.schedulers.qt import QtScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
@@ -24,8 +24,7 @@ class AdvancedSchedular():
             self._started = False
     
     def add_job(self, job: Job):
-        self._scheduler.add_job(job.func, job.trigger, job.args, job.kwargs, job.id, job.name,
-                                next_run_time=job.next_run_time, executor=job.executor)
+        self._scheduler.add_job(job.func, job.trigger, job.args, job.kwargs, job.id, job.name)
  
     def get_job(self, job_id: str) -> Job:
         return self._scheduler.get_job(job_id)
